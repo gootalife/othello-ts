@@ -1,10 +1,10 @@
-import { boardState, BOARD_SIZE, Input, Othello } from './othelloUtils'
+import { BoardState, BOARD_SIZE, Input, Othello } from './othelloUtils'
 import readline from 'readline'
 
-const readUserInput = (question: string) => {
+const readStdIn = (question: string) => {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   })
   return new Promise<string>((resolve) => {
     rl.question(question, (answer: string) => {
@@ -14,7 +14,7 @@ const readUserInput = (question: string) => {
   })
 }
 
-const printBoard = (board: typeof boardState[keyof typeof boardState][][]) => {
+const printBoard = (board: typeof BoardState[keyof typeof BoardState][][]) => {
   for (let colNum = 0; colNum <= BOARD_SIZE; colNum++) {
     process.stdout.write(colNum === 0 ? '  ' : ` ${colNum}`)
   }
@@ -29,61 +29,76 @@ const printBoard = (board: typeof boardState[keyof typeof boardState][][]) => {
   console.log()
 }
 
-const getStateSymbol = (cell: typeof boardState[keyof typeof boardState]) => {
+const getStateSymbol = (cell: typeof BoardState[keyof typeof BoardState]) => {
   let symbol = '  '
   switch (cell) {
-    case boardState.EMPTY:
-      symbol = '□ '
+    case BoardState.EMPTY:
+      symbol = '・'
       break
-    case boardState.BLACK:
-      symbol = '○ '
+    case BoardState.BLACK:
+      symbol = '○'
       break
-    case boardState.WHITE:
-      symbol = '● '
+    case BoardState.WHITE:
+      symbol = '●'
       break
-    case boardState.CAN_PUT:
-      symbol = '☆ '
+    case BoardState.POSSIBLE_TO_PUT:
+      symbol = '☆'
       break
   }
   return symbol
 }
 
+const getUserInput = async (othello: Othello) => {
+  let input: Input = {
+    x: -1,
+    y: -1,
+  }
+  while (true) {
+    printBoard(othello.getBoard())
+    const line = await readStdIn(`Where do you put ${getStateSymbol(othello.getTurn())}? > `)
+    const inputArr = line.split(' ')
+    if (inputArr.length !== 2) {
+      console.log('\nInput error\n')
+      continue
+    }
+    input = {
+      x: Number(inputArr[0]) - 1,
+      y: Number(inputArr[1]) - 1,
+    }
+    if (!othello.verifyInput(input)) {
+      console.log('\nInput error\n')
+      continue
+    }
+    console.log()
+    break
+  }
+  return input
+}
+
 const main = async () => {
   const othello = new Othello()
   while (!othello.getIsFinished()) {
-    if (
-      othello
-        .getBoard()
-        .flat()
-        .filter((cell) => cell === boardState.CAN_PUT).length <= 0
-    ) {
+    // 置ける場所がないならパス
+    if (othello.getBoard().flat().filter((cell) => cell === BoardState.POSSIBLE_TO_PUT).length <= 0) {
+      console.log(`${getStateSymbol(othello.getTurn())} passed.\n`)
       othello.pass()
+      continue
     }
-    let input: Input = {
-      x: -1,
-      y: -1
-    }
-    while (true) {
-      printBoard(othello.getBoard())
-      const line = await readUserInput(`Where do you put ${getStateSymbol(othello.getTurn())} ? > `)
-      const inputArr = line.split(' ')
-      if (inputArr.length !== 2) {
-        console.log('Input error')
-        continue
-      }
-      input = {
-        x: Number(inputArr[0]) - 1,
-        y: Number(inputArr[1]) - 1
-      }
-      if (!othello.varifyInput(input)) {
-        console.log('Input error')
-        continue
-      }
-      console.log()
-      break
-    }
+    const input = await getUserInput(othello)
     othello.put(input)
+    console.log(`${getStateSymbol(othello.getTurn())} was put at (${input.x},${input.y})\n`)
     othello.endTurn()
+  }
+  // ゲーム終了
+  console.log('--- Result ---\n')
+  printBoard(othello.getBoard())
+  console.log(`${getStateSymbol(BoardState.BLACK)}: ${othello.getBoard().flat().filter((cell) => cell === BoardState.BLACK).length}`)
+  console.log(`${getStateSymbol(BoardState.WHITE)}: ${othello.getBoard().flat().filter((cell) => cell === BoardState.WHITE).length}\n`)
+  const winner = othello.getWinner()
+  if (winner) {
+    console.log(`${getStateSymbol(winner)} won!!\n`)
+  } else {
+    console.log('Draw!!')
   }
 }
 
