@@ -1,4 +1,4 @@
-import { BoardState, BOARD_SIZE, Input, Othello } from './othelloUtils'
+import { BoardState, BOARD_SIZE, Input, Othello, RawBoardState } from './othelloUtils'
 import readline from 'readline'
 
 const readStdIn = (question: string) => {
@@ -14,7 +14,7 @@ const readStdIn = (question: string) => {
   })
 }
 
-const printBoard = (board: typeof BoardState[keyof typeof BoardState][][]) => {
+const printBoard = (board: RawBoardState[][]) => {
   for (let colNum = 0; colNum <= BOARD_SIZE; colNum++) {
     process.stdout.write(colNum === 0 ? '  ' : ` ${colNum}`)
   }
@@ -29,7 +29,7 @@ const printBoard = (board: typeof BoardState[keyof typeof BoardState][][]) => {
   console.log()
 }
 
-const getStateSymbol = (cell: typeof BoardState[keyof typeof BoardState]) => {
+const getStateSymbol = (cell: RawBoardState) => {
   let symbol = '  '
   switch (cell) {
     case BoardState.EMPTY:
@@ -41,7 +41,7 @@ const getStateSymbol = (cell: typeof BoardState[keyof typeof BoardState]) => {
     case BoardState.WHITE:
       symbol = '●'
       break
-    case BoardState.POSSIBLE_TO_PUT:
+    case BoardState.CAN_PUT:
       symbol = '☆'
       break
   }
@@ -54,8 +54,8 @@ const getUserInput = async (othello: Othello) => {
     y: -1,
   }
   while (true) {
-    printBoard(othello.getBoard())
-    const line = await readStdIn(`Where do you put ${getStateSymbol(othello.getTurn())}? > `)
+    printBoard(othello.board)
+    const line = await readStdIn(`Where do you put ${getStateSymbol(othello.turn)}? > `)
     const inputArr = line.split(' ')
     if (inputArr.length !== 2) {
       console.log('\nInput error\n')
@@ -77,29 +77,25 @@ const getUserInput = async (othello: Othello) => {
 
 const main = async () => {
   const othello = new Othello()
-  while (!othello.getIsFinished()) {
+  while (!othello.isFinished) {
     // 置ける場所がないならパス
-    if (othello.getBoard().flat().filter((cell) => cell === BoardState.POSSIBLE_TO_PUT).length <= 0) {
-      console.log(`${getStateSymbol(othello.getTurn())} passed.\n`)
+    if (othello.board.flat().filter((cell) => cell === BoardState.CAN_PUT).length <= 0) {
+      console.log(`${getStateSymbol(othello.turn)} passed.\n`)
       othello.pass()
       continue
     }
     const input = await getUserInput(othello)
     othello.put(input)
-    console.log(`${getStateSymbol(othello.getTurn())} was put at (${input.x},${input.y})\n`)
+    console.log(`${getStateSymbol(othello.turn)} was put at (${input.x},${input.y})\n`)
     othello.endTurn()
   }
   // ゲーム終了
   console.log('--- Result ---\n')
-  printBoard(othello.getBoard())
-  console.log(`${getStateSymbol(BoardState.BLACK)}: ${othello.getBoard().flat().filter((cell) => cell === BoardState.BLACK).length}`)
-  console.log(`${getStateSymbol(BoardState.WHITE)}: ${othello.getBoard().flat().filter((cell) => cell === BoardState.WHITE).length}\n`)
-  const winner = othello.getWinner()
-  if (winner) {
-    console.log(`${getStateSymbol(winner)} won!!\n`)
-  } else {
-    console.log('Draw!!')
-  }
+  printBoard(othello.board)
+  console.log(`${getStateSymbol(BoardState.BLACK)}: ${othello.board.flat().filter((cell) => cell === BoardState.BLACK).length}`)
+  console.log(`${getStateSymbol(BoardState.WHITE)}: ${othello.board.flat().filter((cell) => cell === BoardState.WHITE).length}\n`)
+  const winner = othello.winner
+  console.log(winner ? `${getStateSymbol(winner)} won!!\n` : 'Draw!!')
 }
 
 main()
